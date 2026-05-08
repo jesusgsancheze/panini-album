@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d2e">
+<title>Panini 2026 — My Album</title>
+<style>
+  :root {
+    --bg: #0b3d2e;
+    --bg-2: #0f5239;
+    --panel: #103e30;
+    --panel-2: #154a3a;
+    --gold: #f1c40f;
+    --gold-dim: #b08c0a;
+    --text: #f4f1e8;
+    --muted: #9bb6a8;
+    --good: #2ecc71;
+    --bad: #e74c3c;
+    --line: rgba(255,255,255,0.08);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  header {
+    background: linear-gradient(135deg, var(--bg-2), var(--bg));
+    border-bottom: 1px solid var(--line);
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; margin: 0; flex: 0 0 auto; letter-spacing: 0.3px; }
+  header h1 .accent { color: var(--gold); }
+  .progress-block { flex: 1 1 auto; min-width: 200px; }
+  .progress-label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+  .progress-bar { height: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); transition: width .3s; }
+
+  .header-actions { display: flex; gap: 8px; align-items: center; flex: 0 0 auto; }
+  .sync-status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .sync-dot.synced { background: var(--good); }
+  .sync-dot.syncing { background: var(--gold); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--bad); }
+  .sync-dot.offline { background: var(--muted); }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  button {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  button:hover { background: var(--panel); }
+  button.primary { background: var(--gold); color: #1a1a1a; border-color: var(--gold); font-weight: 600; }
+  button.primary:hover { background: #f4d03f; }
+  button.icon { padding: 6px 8px; }
+
+  main { display: flex; flex: 1; overflow: hidden; }
+
+  aside {
+    width: 260px; background: var(--panel); border-right: 1px solid var(--line);
+    overflow-y: auto; flex-shrink: 0;
+  }
+  .filter-box { padding: 10px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); z-index: 1; }
+  .filter-box input {
+    width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    padding: 8px 10px; border-radius: 6px; font-size: 13px;
+  }
+  .group-header {
+    padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--muted); font-weight: 600;
+  }
+  .section-item {
+    padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    border-left: 3px solid transparent; gap: 8px;
+  }
+  .section-item:hover { background: var(--panel-2); }
+  .section-item.active { background: var(--panel-2); border-left-color: var(--gold); }
+  .section-item .name { display: flex; align-items: center; gap: 8px; font-size: 13px; flex: 1; min-width: 0; }
+  .section-item .name span.txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .section-item .count {
+    font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+    flex: 0 0 auto;
+  }
+  .section-item.complete .count { color: var(--good); font-weight: 600; }
+
+  section.content { flex: 1; overflow-y: auto; padding: 16px; }
+  .section-title { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .section-title h2 { margin: 0; font-size: 22px; }
+  .section-title .meta { color: var(--muted); font-size: 13px; }
+  .section-toolbar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .section-toolbar .toggle {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted);
+    background: var(--panel-2); padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .section-toolbar .toggle input { accent-color: var(--gold); }
+
+  .grid {
+    display: grid; gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  .sticker {
+    background: var(--panel); border: 2px solid var(--line); border-radius: 10px;
+    padding: 10px; display: flex; flex-direction: column; gap: 8px; transition: all .15s;
+    position: relative;
+  }
+  .sticker.owned { border-color: var(--gold); background: linear-gradient(135deg, var(--panel), var(--panel-2)); }
+  .sticker .num {
+    font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .sticker.owned .num { color: var(--gold); }
+  .sticker .label {
+    font-size: 13px; line-height: 1.25; min-height: 32px; cursor: pointer;
+    display: flex; align-items: center;
+  }
+  .sticker .actions { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+  .sticker .own-btn {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+    padding: 5px 8px; font-size: 12px; border-radius: 5px; cursor: pointer;
+  }
+  .sticker.owned .own-btn { background: var(--gold); color: #1a1a1a; border-color: var(--gold); font-weight: 600; }
+  .dup-control { display: none; align-items: center; gap: 4px; }
+  .sticker.owned .dup-control { display: flex; }
+  .dup-control button {
+    width: 24px; height: 24px; padding: 0; border-radius: 50%; font-size: 14px;
+    line-height: 1; display: flex; align-items: center; justify-content: center;
+  }
+  .dup-control .count {
+    min-width: 18px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+  .dup-control .count.has-dups { color: var(--gold); font-weight: 600; }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none;
+    align-items: center; justify-content: center; z-index: 100; padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { margin: 0 0 12px; }
+  .modal p { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 8px 0; }
+  .modal label { display: block; font-size: 13px; margin: 12px 0 4px; }
+  .modal input[type="text"] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+    padding: 8px 10px; border-radius: 6px; font-size: 13px; font-family: monospace;
+  }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+  .modal ol { padding-left: 20px; font-size: 13px; line-height: 1.7; color: var(--muted); }
+  .modal ol code { background: var(--panel-2); padding: 1px 5px; border-radius: 3px; color: var(--text); font-size: 12px; }
+  .modal a { color: var(--gold); }
+  .toast {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-2); border: 1px solid var(--line); padding: 10px 16px;
+    border-radius: 8px; font-size: 13px; z-index: 200; opacity: 0;
+    transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { border-color: var(--bad); }
+
+  /* Mobile */
+  .menu-btn { display: none; }
+  @media (max-width: 700px) {
+    aside { position: fixed; left: -260px; top: 0; bottom: 0; z-index: 50; transition: left .25s; height: 100%; }
+    aside.open { left: 0; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+    .menu-btn { display: inline-block; }
+    header h1 { font-size: 14px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+    .progress-block { order: 99; flex-basis: 100%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <button class="menu-btn icon" id="menuBtn" aria-label="Sections">☰</button>
+  <h1>Panini <span class="accent">2026</span> — My Album</h1>
+  <div class="progress-block">
+    <div class="progress-label">
+      <span id="progressText">0 / 980 stickers</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+  <div class="header-actions">
+    <div class="sync-status" id="syncStatus" title="Click to sync now">
+      <span class="sync-dot offline" id="syncDot"></span>
+      <span id="syncText">Offline</span>
+    </div>
+    <button id="setupBtn" title="Dropbox setup">⚙</button>
+  </div>
+</header>
+
+<main>
+  <aside id="sidebar">
+    <div class="filter-box"><input id="filter" type="search" placeholder="Filter sections…" /></div>
+    <div id="sections"></div>
+  </aside>
+  <section class="content" id="content"></section>
+</main>
+
+<div class="modal-backdrop" id="setupModal">
+  <div class="modal">
+    <h2>Dropbox Sync</h2>
+    <p id="setupStatus"></p>
+    <div id="setupForm">
+      <div id="setupShared" style="display:none">
+        <p>Sync your collection to your own Dropbox. Your album file lives in
+        <code>Apps/&lt;app name&gt;/album.json</code> in your Dropbox — only you can see it.</p>
+      </div>
+      <div id="setupAdvanced">
+        <p>To sync your collection across devices, connect a Dropbox app:</p>
+        <ol>
+          <li>Go to <a href="https://www.dropbox.com/developers/apps" target="_blank">dropbox.com/developers/apps</a> → <b>Create app</b>.</li>
+          <li>Choose <b>Scoped access</b>, then <b>App folder</b> (safest — only sees its own folder).</li>
+          <li>Name it anything (e.g. <code>panini-album</code>).</li>
+          <li>In the <b>Permissions</b> tab, check <code>files.content.write</code> and <code>files.content.read</code>, then <b>Submit</b>.</li>
+          <li>In <b>Settings</b>, copy the <b>App key</b>.</li>
+          <li>Add this page's URL to <b>OAuth 2 Redirect URIs</b>: <code id="redirectUri"></code></li>
+          <li>Paste the App key below and click Connect.</li>
+        </ol>
+        <label>App key</label>
+        <input type="text" id="appKeyInput" placeholder="abcdef1234567" />
+      </div>
+      <div class="actions">
+        <button id="closeSetup">Cancel</button>
+        <button id="connectBtn" class="primary">Connect Dropbox</button>
+      </div>
+    </div>
+    <div id="connectedView" style="display:none">
+      <p>✓ Connected to Dropbox.</p>
+      <p>Album file: <code>/Apps/&lt;your app&gt;/album.json</code></p>
+      <div class="actions">
+        <button id="syncNowBtn">Sync now</button>
+        <button id="exportBtn">Export JSON</button>
+        <button id="disconnectBtn">Disconnect</button>
+        <button id="closeSetup2" class="primary">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------------- Config ----------------
+// To share with friends: paste your Dropbox app key here. Each friend gets their
+// own album in their own Dropbox (the app folder is per-user). Make sure your
+// Dropbox app's "OAuth 2 Redirect URIs" includes the URL where this is hosted.
+const SHARED_DBX_APP_KEY = "";
+
+// ---------------- Data ----------------
+// [name, flag, group, ISO 3166-1 alpha-3 (ENG/SCO are non-ISO; using FIFA-style codes)]
+const TEAMS = [
+  ["Algeria","🇩🇿","CAF","DZA"],["Argentina","🇦🇷","CONMEBOL","ARG"],["Australia","🇦🇺","AFC","AUS"],
+  ["Austria","🇦🇹","UEFA","AUT"],["Belgium","🇧🇪","UEFA","BEL"],["Bosnia and Herzegovina","🇧🇦","UEFA","BIH"],
+  ["Brazil","🇧🇷","CONMEBOL","BRA"],["Canada","🇨🇦","Host","CAN"],["Cape Verde","🇨🇻","CAF","CPV"],
+  ["Colombia","🇨🇴","CONMEBOL","COL"],["Congo DR","🇨🇩","CAF","COD"],["Croatia","🇭🇷","UEFA","HRV"],
+  ["Curaçao","🇨🇼","CONCACAF","CUW"],["Czechia","🇨🇿","UEFA","CZE"],["Ecuador","🇪🇨","CONMEBOL","ECU"],
+  ["Egypt","🇪🇬","CAF","EGY"],["England","🏴󠁧󠁢󠁥󠁮󠁧󠁿","UEFA","ENG"],["France","🇫🇷","UEFA","FRA"],
+  ["Germany","🇩🇪","UEFA","DEU"],["Ghana","🇬🇭","CAF","GHA"],["Haiti","🇭🇹","CONCACAF","HTI"],
+  ["Iran","🇮🇷","AFC","IRN"],["Iraq","🇮🇶","AFC","IRQ"],["Ivory Coast","🇨🇮","CAF","CIV"],
+  ["Japan","🇯🇵","AFC","JPN"],["Jordan","🇯🇴","AFC","JOR"],["Mexico","🇲🇽","Host","MEX"],
+  ["Morocco","🇲🇦","CAF","MAR"],["Netherlands","🇳🇱","UEFA","NLD"],["New Zealand","🇳🇿","OFC","NZL"],
+  ["Norway","🇳🇴","UEFA","NOR"],["Panama","🇵🇦","CONCACAF","PAN"],["Paraguay","🇵🇾","CONMEBOL","PRY"],
+  ["Portugal","🇵🇹","UEFA","PRT"],["Qatar","🇶🇦","AFC","QAT"],["Saudi Arabia","🇸🇦","AFC","SAU"],
+  ["Scotland","🏴󠁧󠁢󠁳󠁣󠁴󠁿","UEFA","SCO"],["Senegal","🇸🇳","CAF","SEN"],["South Africa","🇿🇦","CAF","ZAF"],
+  ["South Korea","🇰🇷","AFC","KOR"],["Spain","🇪🇸","UEFA","ESP"],["Sweden","🇸🇪","UEFA","SWE"],
+  ["Switzerland","🇨🇭","UEFA","CHE"],["Tunisia","🇹🇳","CAF","TUN"],["Türkiye","🇹🇷","UEFA","TUR"],
+  ["United States","🇺🇸","Host","USA"],["Uruguay","🇺🇾","CONMEBOL","URY"],["Uzbekistan","🇺🇿","AFC","UZB"]
+];
+
+// Intro stickers numbered 0-19. Panini=0, Emblem A/B at 1-2.
+const INTRO_LABELS = [
+  "Panini Logo",
+  "FIFA Emblem (1/2)","FIFA Emblem (2/2)",
+  "Mascots","Slogan","Official Ball",
+  "Host: Canada","Host: Mexico","Host: USA",
+  "FIFA Museum 1","FIFA Museum 2","FIFA Museum 3","FIFA Museum 4",
+  "FIFA Museum 5","FIFA Museum 6","FIFA Museum 7","FIFA Museum 8",
+  "FIFA Museum 9","FIFA Museum 10","FIFA Museum 11"
+];
+
+// Build sections.
+// Per-team layout (within team's 20-sticker block):
+//   pos 1  → Crest
+//   pos 2-12 → Players 1-11
+//   pos 13 → Team Photo
+//   pos 14-20 → Players 12-18
+const SECTIONS = [];
+SECTIONS.push({
+  id: "intro",
+  name: "Intro & Tournament",
+  group: "Special",
+  flag: "⚽",
+  stickers: INTRO_LABELS.map((label, i) => ({ n: i, label }))
+});
+TEAMS.forEach((t, idx) => {
+  const start = 20 + idx * 20;
+  const code = t[3];
+  const stickers = [];
+  stickers.push({ n: start, label: "Team Crest" });
+  for (let p = 2; p <= 12; p++) stickers.push({ n: start + p - 1, label: `${code} ${p}` });
+  stickers.push({ n: start + 12, label: "Team Photo" });
+  for (let p = 14; p <= 20; p++) stickers.push({ n: start + p - 1, label: `${code} ${p}` });
+  SECTIONS.push({
+    id: "team-" + idx,
+    name: t[0],
+    group: t[2],
+    flag: t[1],
+    stickers
+  });
+});
+
+const TOTAL_STICKERS = 980;
+
+// ---------------- State ----------------
+const STORAGE_KEY = "panini2026.v1";
+const DBX_KEY = "panini2026.dbx";
+
+const defaultState = () => ({
+  version: 1,
+  lastUpdated: 0,
+  owned: {},      // { "23": true }
+  duplicates: {}  // { "23": 2 } meaning 2 EXTRAS beyond the first
+});
+
+let state = loadState();
+let activeSectionId = "intro";
+let hideOwned = false;
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    return Object.assign(defaultState(), parsed);
+  } catch { return defaultState(); }
+}
+
+function saveState() {
+  state.lastUpdated = Date.now();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  scheduleSync();
+}
+
+function ownedCount() { return Object.keys(state.owned).filter(k => state.owned[k]).length; }
+function dupsFor(n) { return state.duplicates[n] || 0; }
+function isOwned(n) { return !!state.owned[n]; }
+
+function setOwned(n, v) {
+  if (v) state.owned[n] = true; else { delete state.owned[n]; delete state.duplicates[n]; }
+  saveState();
+}
+function setDups(n, v) {
+  v = Math.max(0, v|0);
+  if (v === 0) delete state.duplicates[n]; else state.duplicates[n] = v;
+  saveState();
+}
+
+// ---------------- Render ----------------
+const $ = (id) => document.getElementById(id);
+
+function sectionStats(sec) {
+  let owned = 0, dups = 0;
+  sec.stickers.forEach(s => {
+    if (isOwned(s.n)) owned++;
+    dups += dupsFor(s.n);
+  });
+  return { owned, total: sec.stickers.length, dups };
+}
+
+function renderSidebar() {
+  const filter = ($("filter").value || "").toLowerCase();
+  const groups = {};
+  SECTIONS.forEach(sec => {
+    if (filter && !sec.name.toLowerCase().includes(filter) && !sec.group.toLowerCase().includes(filter)) return;
+    (groups[sec.group] ||= []).push(sec);
+  });
+  const order = ["Special","Host","UEFA","CONMEBOL","CONCACAF","CAF","AFC","OFC"];
+  let html = "";
+  order.forEach(g => {
+    if (!groups[g]) return;
+    html += `<div class="group-header">${g}</div>`;
+    groups[g].forEach(sec => {
+      const st = sectionStats(sec);
+      const complete = st.owned === st.total;
+      const dupBadge = st.dups > 0 ? ` <span style="color:var(--gold)">+${st.dups}</span>` : "";
+      html += `<div class="section-item ${activeSectionId === sec.id ? 'active' : ''} ${complete ? 'complete' : ''}" data-id="${sec.id}">
+        <div class="name"><span>${sec.flag}</span><span class="txt">${sec.name}</span></div>
+        <div class="count">${st.owned}/${st.total}${dupBadge}</div>
+      </div>`;
+    });
+  });
+  $("sections").innerHTML = html;
+  $("sections").querySelectorAll(".section-item").forEach(el => {
+    el.addEventListener("click", () => {
+      activeSectionId = el.dataset.id;
+      renderSidebar(); renderContent();
+      if (window.innerWidth <= 700) $("sidebar").classList.remove("open");
+    });
+  });
+}
+
+function renderContent() {
+  const sec = SECTIONS.find(s => s.id === activeSectionId);
+  if (!sec) return;
+  const st = sectionStats(sec);
+  let html = `
+    <div class="section-title">
+      <h2>${sec.flag} ${sec.name}</h2>
+      <span class="meta">${st.owned}/${st.total} collected${st.dups ? ` · ${st.dups} extras for trade` : ''}</span>
+    </div>
+    <div class="section-toolbar">
+      <label class="toggle"><input type="checkbox" id="hideOwnedCheck" ${hideOwned ? 'checked' : ''}/> Hide owned</label>
+      <button id="markAllBtn">Mark section complete</button>
+      <button id="clearAllBtn">Clear section</button>
+    </div>
+    <div class="grid" id="grid">`;
+  sec.stickers.forEach(s => {
+    const owned = isOwned(s.n);
+    if (hideOwned && owned) return;
+    const dups = dupsFor(s.n);
+    html += `<div class="sticker ${owned ? 'owned' : ''}" data-n="${s.n}">
+      <div class="num"><span>#${s.n}</span>${owned ? '<span>✓</span>' : ''}</div>
+      <div class="label">${s.label}</div>
+      <div class="actions">
+        <button class="own-btn">${owned ? 'Got it' : 'Mark have'}</button>
+        <div class="dup-control">
+          <button class="dup-minus" title="Remove duplicate">−</button>
+          <span class="count ${dups > 0 ? 'has-dups' : ''}">${dups}</span>
+          <button class="dup-plus" title="Add duplicate">+</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+  $("content").innerHTML = html;
+
+  $("hideOwnedCheck").addEventListener("change", e => { hideOwned = e.target.checked; renderContent(); });
+  $("markAllBtn").addEventListener("click", () => {
+    sec.stickers.forEach(s => { if (!isOwned(s.n)) state.owned[s.n] = true; });
+    saveState(); rerender();
+  });
+  $("clearAllBtn").addEventListener("click", () => {
+    if (!confirm("Clear all stickers in this section? (extras will also be cleared)")) return;
+    sec.stickers.forEach(s => { delete state.owned[s.n]; delete state.duplicates[s.n]; });
+    saveState(); rerender();
+  });
+  $("grid").querySelectorAll(".sticker").forEach(el => {
+    const n = +el.dataset.n;
+    el.querySelector(".own-btn").addEventListener("click", () => { setOwned(n, !isOwned(n)); rerender(); });
+    el.querySelector(".label").addEventListener("click", () => { setOwned(n, !isOwned(n)); rerender(); });
+    el.querySelector(".dup-plus").addEventListener("click", e => { e.stopPropagation(); setDups(n, dupsFor(n) + 1); rerender(); });
+    el.querySelector(".dup-minus").addEventListener("click", e => { e.stopPropagation(); setDups(n, dupsFor(n) - 1); rerender(); });
+  });
+}
+
+function renderProgress() {
+  const c = ownedCount();
+  const pct = Math.round((c / TOTAL_STICKERS) * 100);
+  $("progressText").textContent = `${c} / ${TOTAL_STICKERS} stickers`;
+  $("progressPct").textContent = pct + "%";
+  $("progressFill").style.width = pct + "%";
+}
+
+function rerender() { renderSidebar(); renderContent(); renderProgress(); }
+
+// ---------------- Dropbox OAuth (PKCE) ----------------
+const DBX_REDIRECT = location.origin + location.pathname;
+
+function dbxState() {
+  try { return JSON.parse(localStorage.getItem(DBX_KEY) || "{}"); } catch { return {}; }
+}
+function setDbxState(s) { localStorage.setItem(DBX_KEY, JSON.stringify(s)); }
+
+async function sha256(buf) {
+  const data = new TextEncoder().encode(buf);
+  const h = await crypto.subtle.digest("SHA-256", data);
+  return btoa(String.fromCharCode(...new Uint8Array(h)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function randomString(len = 64) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => chars[b % chars.length]).join("");
+}
+
+async function startDropboxOAuth(appKey) {
+  const verifier = randomString(64);
+  const challenge = await sha256(verifier);
+  const s = dbxState();
+  s.appKey = appKey;
+  s.verifier = verifier;
+  setDbxState(s);
+  const url = new URL("https://www.dropbox.com/oauth2/authorize");
+  url.searchParams.set("client_id", appKey);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("code_challenge", challenge);
+  url.searchParams.set("code_challenge_method", "S256");
+  url.searchParams.set("token_access_type", "offline");
+  url.searchParams.set("redirect_uri", DBX_REDIRECT);
+  location.href = url.toString();
+}
+
+async function exchangeCode(code) {
+  const s = dbxState();
+  if (!s.appKey || !s.verifier) throw new Error("Missing OAuth state");
+  const body = new URLSearchParams({
+    code, grant_type: "authorization_code", client_id: s.appKey,
+    code_verifier: s.verifier, redirect_uri: DBX_REDIRECT
+  });
+  const r = await fetch("https://api.dropboxapi.com/oauth2/token", {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body
+  });
+  if (!r.ok) throw new Error("Token exchange failed: " + await r.text());
+  const tok = await r.json();
+  s.accessToken = tok.access_token;
+  s.refreshToken = tok.refresh_token;
+  s.expiresAt = Date.now() + (tok.expires_in - 60) * 1000;
+  delete s.verifier;
+  setDbxState(s);
+}
+
+async function refreshAccess() {
+  const s = dbxState();
+  if (!s.refreshToken) throw new Error("Not connected");
+  const body = new URLSearchParams({
+    grant_type: "refresh_token", refresh_token: s.refreshToken, client_id: s.appKey
+  });
+  const r = await fetch("https://api.dropboxapi.com/oauth2/token", {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body
+  });
+  if (!r.ok) throw new Error("Refresh failed");
+  const tok = await r.json();
+  s.accessToken = tok.access_token;
+  s.expiresAt = Date.now() + (tok.expires_in - 60) * 1000;
+  setDbxState(s);
+}
+
+async function getAccessToken() {
+  const s = dbxState();
+  if (!s.accessToken) return null;
+  if (Date.now() >= (s.expiresAt || 0)) await refreshAccess();
+  return dbxState().accessToken;
+}
+
+async function dbxDownload() {
+  const tok = await getAccessToken();
+  if (!tok) return null;
+  const r = await fetch("https://content.dropboxapi.com/2/files/download", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + tok,
+      "Dropbox-API-Arg": JSON.stringify({ path: "/album.json" })
+    }
+  });
+  if (r.status === 409) return null; // not found
+  if (!r.ok) throw new Error("Download failed: " + r.status);
+  return await r.json();
+}
+
+async function dbxUpload(data) {
+  const tok = await getAccessToken();
+  if (!tok) return;
+  const r = await fetch("https://content.dropboxapi.com/2/files/upload", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + tok,
+      "Dropbox-API-Arg": JSON.stringify({ path: "/album.json", mode: "overwrite", autorename: false, mute: true }),
+      "Content-Type": "application/octet-stream"
+    },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) throw new Error("Upload failed: " + r.status);
+}
+
+// ---------------- Sync ----------------
+let syncTimer = null;
+function scheduleSync() {
+  if (!dbxState().refreshToken) return;
+  setSyncStatus("pending", "Pending");
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(doSync, 1500);
+}
+
+async function doSync() {
+  if (!dbxState().refreshToken) { setSyncStatus("offline", "Offline"); return; }
+  try {
+    setSyncStatus("syncing", "Syncing…");
+    const remote = await dbxDownload();
+    if (remote && remote.lastUpdated > state.lastUpdated) {
+      state = Object.assign(defaultState(), remote);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      rerender();
+    } else {
+      await dbxUpload(state);
+    }
+    setSyncStatus("synced", "Synced");
+  } catch (e) {
+    console.error(e);
+    setSyncStatus("error", "Sync error");
+  }
+}
+
+function setSyncStatus(cls, text) {
+  $("syncDot").className = "sync-dot " + cls;
+  $("syncText").textContent = text;
+}
+
+function toast(msg, isError) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "toast show" + (isError ? " error" : "");
+  setTimeout(() => t.className = "toast" + (isError ? " error" : ""), 2500);
+}
+
+// ---------------- Setup modal ----------------
+function openSetup() {
+  $("redirectUri").textContent = DBX_REDIRECT;
+  const connected = !!dbxState().refreshToken;
+  const shared = !!SHARED_DBX_APP_KEY;
+  $("setupForm").style.display = connected ? "none" : "block";
+  $("connectedView").style.display = connected ? "block" : "none";
+  $("setupStatus").textContent = connected ? "Connected to Dropbox." : "";
+  $("setupShared").style.display = shared ? "block" : "none";
+  $("setupAdvanced").style.display = shared ? "none" : "block";
+  $("setupModal").classList.add("open");
+}
+function closeSetup() { $("setupModal").classList.remove("open"); }
+
+// ---------------- Init ----------------
+async function handleOAuthRedirect() {
+  const params = new URLSearchParams(location.search);
+  const code = params.get("code");
+  if (!code) return;
+  history.replaceState({}, "", location.pathname);
+  try {
+    await exchangeCode(code);
+    toast("Dropbox connected!");
+    await doSync();
+  } catch (e) {
+    toast("OAuth failed: " + e.message, true);
+  }
+}
+
+function initListeners() {
+  $("setupBtn").addEventListener("click", openSetup);
+  $("closeSetup").addEventListener("click", closeSetup);
+  $("closeSetup2").addEventListener("click", closeSetup);
+  $("syncStatus").addEventListener("click", () => { if (dbxState().refreshToken) doSync(); else openSetup(); });
+  $("menuBtn").addEventListener("click", () => $("sidebar").classList.toggle("open"));
+  $("filter").addEventListener("input", renderSidebar);
+  $("connectBtn").addEventListener("click", () => {
+    const k = SHARED_DBX_APP_KEY || $("appKeyInput").value.trim();
+    if (!k) { toast("Enter app key", true); return; }
+    startDropboxOAuth(k);
+  });
+  $("syncNowBtn").addEventListener("click", () => { closeSetup(); doSync(); });
+  $("disconnectBtn").addEventListener("click", () => {
+    if (!confirm("Disconnect Dropbox? Local data is kept.")) return;
+    localStorage.removeItem(DBX_KEY);
+    setSyncStatus("offline", "Offline");
+    closeSetup();
+    toast("Disconnected.");
+  });
+  $("exportBtn").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "panini-2026-album.json";
+    a.click();
+  });
+}
+
+async function init() {
+  initListeners();
+  rerender();
+  if (location.search.includes("code=")) await handleOAuthRedirect();
+  if (dbxState().refreshToken) {
+    setSyncStatus("synced", "Connected");
+    doSync();
+  } else {
+    setSyncStatus("offline", "Offline");
+  }
+}
+
+init();
+</script>
+</body>
+</html>
