@@ -101,5 +101,5 @@ The album file ends up at `Apps/<your app name>/album.json` in your Dropbox.
 - 980 base stickers, numbered 0–979 (no Coca-Cola exclusives or 1:100 ultra-rares).
 - **Intro (0–19):** #0 Panini logo, #1–#2 FIFA Emblem (×2), #3 Mascots, #4 Slogan, #5 Ball, #6–#8 Hosts, #9–#19 FIFA Museum (11 past champions).
 - **Teams (20–979):** 48 teams alphabetical, 20 stickers each. Per-team layout: position 1 = Crest, positions 2–12 = Players, position 13 = Team Photo, positions 14–20 = Players.
-- Player labels are the team's ISO 3166-1 alpha-3 code + position within team (e.g. `ARG 2`, `ARG 3`, …, `ARG 12`, `ARG 14`, …, `ARG 20` — skipping 1 and 13 which are Crest and Team Photo). England (`ENG`) and Scotland (`SCO`) use FIFA-style codes since they have no ISO codes.
+- Player labels are the team's **FIFA country code** (trigram) + position within team (e.g. `ARG 2`, `KSA 3`, `NED 14`, … — skipping 1 and 13 which are Crest and Team Photo). These are the codes Panini prints on the actual stickers (KSA, GER, NED, POR, SUI, RSA, URU, PAR, CRO, ALG, HAI…), *not* ISO 3166 codes.
 - If the official album numbers teams in a different order (e.g. by group draw), rearrange the `TEAMS` array in `index.html` — sticker numbers stay tied to numbers, so existing progress is preserved.

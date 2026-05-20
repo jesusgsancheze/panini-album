@@ -66,6 +66,13 @@
     width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
     padding: 8px 10px; border-radius: 6px; font-size: 13px;
   }
+  .sort-toggle { display: flex; gap: 4px; margin-top: 8px; background: var(--bg); padding: 3px; border-radius: 6px; }
+  .sort-toggle button {
+    flex: 1; padding: 5px 8px; font-size: 11px;
+    background: transparent; color: var(--muted); border: none; border-radius: 4px;
+    letter-spacing: 0.3px;
+  }
+  .sort-toggle button.active { background: var(--gold); color: #1a1a1a; font-weight: 600; }
   .group-header {
     padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
     color: var(--muted); font-weight: 600;
@@ -132,6 +139,43 @@
   }
   .dup-control .count.has-dups { color: var(--gold); font-weight: 600; }
 
+  /* Stats view */
+  .stats { display: flex; flex-direction: column; gap: 28px; }
+  .stats-section h3 {
+    margin: 0 0 10px; font-size: 16px;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  }
+  .stats-section h3 .meta { font-size: 12px; color: var(--muted); font-weight: normal; }
+  .stats-empty { color: var(--muted); font-size: 13px; margin: 4px 0; }
+  .missing-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .missing-item {
+    background: var(--panel); border: 1px solid var(--line); padding: 6px 10px;
+    border-radius: 6px; cursor: pointer; font-size: 13px;
+    display: inline-flex; gap: 6px; align-items: center; color: var(--text);
+  }
+  .missing-item:hover { background: var(--panel-2); border-color: var(--gold); }
+  .progress-list { display: flex; flex-direction: column; gap: 6px; }
+  .progress-row {
+    display: grid; grid-template-columns: minmax(120px, 1fr) 2fr auto; gap: 12px; align-items: center;
+    background: var(--panel); padding: 8px 12px; border-radius: 6px;
+    border: 1px solid var(--line); cursor: pointer;
+  }
+  .progress-row:hover { border-color: var(--gold); }
+  .progress-row .label {
+    font-size: 13px; display: flex; gap: 6px; align-items: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .progress-row .bar { height: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; overflow: hidden; }
+  .progress-row .fill { height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); }
+  .progress-row .pct { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 90px; text-align: right; white-space: nowrap; }
+  .progress-row.complete { border-color: rgba(46, 204, 113, 0.4); }
+  .progress-row.complete .pct { color: var(--good); }
+  .progress-row.complete .fill { background: var(--good); }
+  @media (max-width: 700px) {
+    .progress-row { grid-template-columns: 1fr auto; gap: 8px; }
+    .progress-row .bar { grid-column: 1 / -1; order: 99; }
+  }
+
   /* Modal */
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none;
@@ -176,8 +220,8 @@
 </head>
 <body>
 <header>
-  <button class="menu-btn icon" id="menuBtn" aria-label="Sections">☰</button>
-  <h1>Panini <span class="accent">2026</span> — My Album</h1>
+  <button class="menu-btn icon" id="menuBtn" data-i18n-aria="sectionsAria" aria-label="Sections">☰</button>
+  <h1>Panini <span class="accent">2026</span> — <span data-i18n="myAlbum">My Album</span></h1>
   <div class="progress-block">
     <div class="progress-label">
       <span id="progressText">0 / 980 stickers</span>
@@ -186,17 +230,24 @@
     <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
   </div>
   <div class="header-actions">
-    <div class="sync-status" id="syncStatus" title="Click to sync now">
+    <div class="sync-status" id="syncStatus" data-i18n-title="clickToSync" title="Click to sync now">
       <span class="sync-dot offline" id="syncDot"></span>
       <span id="syncText">Offline</span>
     </div>
-    <button id="setupBtn" title="Dropbox setup">⚙</button>
+    <button id="langBtn" title="Language / Idioma">EN</button>
+    <button id="setupBtn" data-i18n-title="dropboxSetup" title="Dropbox setup">⚙</button>
   </div>
 </header>
 
 <main>
   <aside id="sidebar">
-    <div class="filter-box"><input id="filter" type="search" placeholder="Filter sections…" /></div>
+    <div class="filter-box">
+      <input id="filter" type="search" data-i18n-placeholder="filterPlaceholder" placeholder="Filter sections…" />
+      <div class="sort-toggle" id="sortToggle">
+        <button data-sort="confederation" data-i18n="confederation">Confederation</button>
+        <button data-sort="group" data-i18n="wcGroup">World Cup group</button>
+      </div>
+    </div>
     <div id="sections"></div>
   </aside>
   <section class="content" id="content"></section>
@@ -204,40 +255,39 @@
 
 <div class="modal-backdrop" id="setupModal">
   <div class="modal">
-    <h2>Dropbox Sync</h2>
+    <h2 data-i18n="modalTitle">Dropbox Sync</h2>
     <p id="setupStatus"></p>
     <div id="setupForm">
       <div id="setupShared" style="display:none">
-        <p>Sync your collection to your own Dropbox. Your album file lives in
-        <code>Apps/&lt;app name&gt;/album.json</code> in your Dropbox — only you can see it.</p>
+        <p data-i18n-html="sharedIntro"></p>
       </div>
       <div id="setupAdvanced">
-        <p>To sync your collection across devices, connect a Dropbox app:</p>
+        <p data-i18n="advancedIntro"></p>
         <ol>
-          <li>Go to <a href="https://www.dropbox.com/developers/apps" target="_blank">dropbox.com/developers/apps</a> → <b>Create app</b>.</li>
-          <li>Choose <b>Scoped access</b>, then <b>App folder</b> (safest — only sees its own folder).</li>
-          <li>Name it anything (e.g. <code>panini-album</code>).</li>
-          <li>In the <b>Permissions</b> tab, check <code>files.content.write</code> and <code>files.content.read</code>, then <b>Submit</b>.</li>
-          <li>In <b>Settings</b>, copy the <b>App key</b>.</li>
-          <li>Add this page's URL to <b>OAuth 2 Redirect URIs</b>: <code id="redirectUri"></code></li>
-          <li>Paste the App key below and click Connect.</li>
+          <li data-i18n-html="step1"></li>
+          <li data-i18n-html="step2"></li>
+          <li data-i18n-html="step3"></li>
+          <li data-i18n-html="step4"></li>
+          <li data-i18n-html="step5"></li>
+          <li data-i18n-html="step6"></li>
+          <li data-i18n-html="step7"></li>
         </ol>
-        <label>App key</label>
+        <label data-i18n="appKey">App key</label>
         <input type="text" id="appKeyInput" placeholder="abcdef1234567" />
       </div>
       <div class="actions">
-        <button id="closeSetup">Cancel</button>
-        <button id="connectBtn" class="primary">Connect Dropbox</button>
+        <button id="closeSetup" data-i18n="cancel">Cancel</button>
+        <button id="connectBtn" class="primary" data-i18n="connectDbx">Connect Dropbox</button>
       </div>
     </div>
     <div id="connectedView" style="display:none">
-      <p>✓ Connected to Dropbox.</p>
-      <p>Album file: <code>/Apps/&lt;your app&gt;/album.json</code></p>
+      <p data-i18n="connectedShort">✓ Connected to Dropbox.</p>
+      <p data-i18n-html="albumFile"></p>
       <div class="actions">
-        <button id="syncNowBtn">Sync now</button>
-        <button id="exportBtn">Export JSON</button>
-        <button id="disconnectBtn">Disconnect</button>
-        <button id="closeSetup2" class="primary">Done</button>
+        <button id="syncNowBtn" data-i18n="syncNow">Sync now</button>
+        <button id="exportBtn" data-i18n="exportJson">Export JSON</button>
+        <button id="disconnectBtn" data-i18n="disconnect">Disconnect</button>
+        <button id="closeSetup2" class="primary" data-i18n="done">Done</button>
       </div>
     </div>
   </div>
@@ -252,37 +302,257 @@
 // Dropbox app's "OAuth 2 Redirect URIs" includes the URL where this is hosted.
 const SHARED_DBX_APP_KEY = "";
 
+// ---------------- i18n ----------------
+const I18N = {
+  en: {
+    docTitle: "Panini 2026 — My Album",
+    myAlbum: "My Album",
+    stickerCount: (c, total) => `${c} / ${total} stickers`,
+    clickToSync: "Click to sync now",
+    dropboxSetup: "Dropbox setup",
+    sectionsAria: "Sections",
+    filterPlaceholder: "Filter sections…",
+    confederation: "Confederation",
+    wcGroup: "World Cup group",
+    overview: "Overview",
+    stats: "Stats",
+    statsTitle: "📊 Stats",
+    statsSubtitle: "Snapshot of your collection",
+    special: "Special",
+    host: "Hosts",
+    intro: "Intro & Tournament",
+    group: "Group",
+    collected: (owned, total) => `${owned}/${total} collected`,
+    extras: (n) => `${n} extras for trade`,
+    hideOwned: "Hide owned",
+    markComplete: "Mark section complete",
+    clearSection: "Clear section",
+    clearConfirm: "Clear all stickers in this section? (extras will also be cleared)",
+    gotIt: "Got it",
+    markHave: "Mark have",
+    removeDup: "Remove duplicate",
+    addDup: "Add duplicate",
+    teamCrest: "Team Crest",
+    teamPhoto: "Team Photo",
+    paniniLogo: "Panini Logo",
+    fifaEmblem1: "FIFA Emblem (1/2)",
+    fifaEmblem2: "FIFA Emblem (2/2)",
+    mascots: "Mascots",
+    slogan: "Slogan",
+    officialBall: "Official Ball",
+    hostCanada: "Host: Canada",
+    hostMexico: "Host: Mexico",
+    hostUSA: "Host: USA",
+    fifaMuseum: (n) => `FIFA Museum ${n}`,
+    missingCrests: "Missing crests",
+    missingPhotos: "Missing team photos",
+    countOf: (a, b) => `${a} of ${b}`,
+    allCrests: "All crests collected! 🎉",
+    allPhotos: "All team photos collected! 🎉",
+    groupProgress: "Group progress",
+    teamProgress: "Team progress",
+    mostToLeast: "most → least completed",
+    offline: "Offline",
+    connectedStatus: "Connected",
+    synced: "Synced",
+    syncing: "Syncing…",
+    pending: "Pending",
+    syncErr: "Sync error",
+    modalTitle: "Dropbox Sync",
+    connectedToDbx: "Connected to Dropbox.",
+    sharedIntro: 'Sync your collection to your own Dropbox. Your album file lives in <code>Apps/&lt;app name&gt;/album.json</code> in your Dropbox — only you can see it.',
+    advancedIntro: "To sync your collection across devices, connect a Dropbox app:",
+    step1: 'Go to <a href="https://www.dropbox.com/developers/apps" target="_blank">dropbox.com/developers/apps</a> → <b>Create app</b>.',
+    step2: 'Choose <b>Scoped access</b>, then <b>App folder</b> (safest — only sees its own folder).',
+    step3: 'Name it anything (e.g. <code>panini-album</code>).',
+    step4: 'In the <b>Permissions</b> tab, check <code>files.content.write</code> and <code>files.content.read</code>, then <b>Submit</b>.',
+    step5: 'In <b>Settings</b>, copy the <b>App key</b>.',
+    step6: 'Add this page\'s URL to <b>OAuth 2 Redirect URIs</b>: <code id="redirectUri"></code>',
+    step7: 'Paste the App key below and click Connect.',
+    appKey: "App key",
+    cancel: "Cancel",
+    connectDbx: "Connect Dropbox",
+    connectedShort: "✓ Connected to Dropbox.",
+    albumFile: 'Album file: <code>/Apps/&lt;your app&gt;/album.json</code>',
+    syncNow: "Sync now",
+    exportJson: "Export JSON",
+    disconnect: "Disconnect",
+    done: "Done",
+    disconnectConfirm: "Disconnect Dropbox? Local data is kept.",
+    dropboxConnectedToast: "Dropbox connected!",
+    oauthFailed: (msg) => "OAuth failed: " + msg,
+    enterAppKey: "Enter app key",
+    disconnectedToast: "Disconnected."
+  },
+  es: {
+    docTitle: "Panini 2026 — Mi Álbum",
+    myAlbum: "Mi Álbum",
+    stickerCount: (c, total) => `${c} / ${total} cromos`,
+    clickToSync: "Haz clic para sincronizar",
+    dropboxSetup: "Configurar Dropbox",
+    sectionsAria: "Secciones",
+    filterPlaceholder: "Filtrar secciones…",
+    confederation: "Confederación",
+    wcGroup: "Grupo del Mundial",
+    overview: "Resumen",
+    stats: "Estadísticas",
+    statsTitle: "📊 Estadísticas",
+    statsSubtitle: "Resumen de tu colección",
+    special: "Especial",
+    host: "Anfitriones",
+    intro: "Intro y torneo",
+    group: "Grupo",
+    collected: (owned, total) => `${owned}/${total} conseguidos`,
+    extras: (n) => `${n} repetidos para cambiar`,
+    hideOwned: "Ocultar conseguidos",
+    markComplete: "Marcar sección como completa",
+    clearSection: "Limpiar sección",
+    clearConfirm: "¿Borrar todos los cromos de esta sección? (los repetidos también se eliminarán)",
+    gotIt: "Lo tengo",
+    markHave: "Marcar",
+    removeDup: "Quitar repetido",
+    addDup: "Añadir repetido",
+    teamCrest: "Escudo",
+    teamPhoto: "Foto del equipo",
+    paniniLogo: "Logo Panini",
+    fifaEmblem1: "Emblema FIFA (1/2)",
+    fifaEmblem2: "Emblema FIFA (2/2)",
+    mascots: "Mascotas",
+    slogan: "Eslogan",
+    officialBall: "Balón oficial",
+    hostCanada: "Anfitrión: Canadá",
+    hostMexico: "Anfitrión: México",
+    hostUSA: "Anfitrión: EE. UU.",
+    fifaMuseum: (n) => `Museo FIFA ${n}`,
+    missingCrests: "Escudos que faltan",
+    missingPhotos: "Fotos de equipo que faltan",
+    countOf: (a, b) => `${a} de ${b}`,
+    allCrests: "¡Todos los escudos conseguidos! 🎉",
+    allPhotos: "¡Todas las fotos de equipo conseguidas! 🎉",
+    groupProgress: "Progreso por grupo",
+    teamProgress: "Progreso por equipo",
+    mostToLeast: "de más a menos completados",
+    offline: "Sin conexión",
+    connectedStatus: "Conectado",
+    synced: "Sincronizado",
+    syncing: "Sincronizando…",
+    pending: "Pendiente",
+    syncErr: "Error al sincronizar",
+    modalTitle: "Sincronización con Dropbox",
+    connectedToDbx: "Conectado a Dropbox.",
+    sharedIntro: 'Sincroniza tu colección con tu propio Dropbox. El archivo del álbum se guarda en <code>Apps/&lt;nombre&gt;/album.json</code> dentro de tu Dropbox — solo tú puedes verlo.',
+    advancedIntro: "Para sincronizar tu colección entre dispositivos, conecta una app de Dropbox:",
+    step1: 'Ve a <a href="https://www.dropbox.com/developers/apps" target="_blank">dropbox.com/developers/apps</a> → <b>Create app</b>.',
+    step2: 'Elige <b>Scoped access</b>, luego <b>App folder</b> (más seguro — solo ve su propia carpeta).',
+    step3: 'Ponle el nombre que quieras (p. ej. <code>panini-album</code>).',
+    step4: 'En la pestaña <b>Permissions</b>, marca <code>files.content.write</code> y <code>files.content.read</code>, y haz clic en <b>Submit</b>.',
+    step5: 'En <b>Settings</b>, copia la <b>App key</b>.',
+    step6: 'Añade la URL de esta página a <b>OAuth 2 Redirect URIs</b>: <code id="redirectUri"></code>',
+    step7: 'Pega la App key abajo y haz clic en Conectar.',
+    appKey: "App key",
+    cancel: "Cancelar",
+    connectDbx: "Conectar Dropbox",
+    connectedShort: "✓ Conectado a Dropbox.",
+    albumFile: 'Archivo del álbum: <code>/Apps/&lt;tu app&gt;/album.json</code>',
+    syncNow: "Sincronizar ahora",
+    exportJson: "Exportar JSON",
+    disconnect: "Desconectar",
+    done: "Hecho",
+    disconnectConfirm: "¿Desconectar Dropbox? Los datos locales se mantienen.",
+    dropboxConnectedToast: "¡Dropbox conectado!",
+    oauthFailed: (msg) => "Error de OAuth: " + msg,
+    enterAppKey: "Introduce la App key",
+    disconnectedToast: "Desconectado."
+  }
+};
+
+let lang = localStorage.getItem("panini.lang");
+if (!I18N[lang]) lang = (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en";
+
+function t(key, ...args) {
+  const v = (I18N[lang] && I18N[lang][key]);
+  const fallback = I18N.en[key];
+  const value = v != null ? v : fallback;
+  if (value == null) return key;
+  return typeof value === "function" ? value(...args) : value;
+}
+
+function setLang(newLang) {
+  if (!I18N[newLang]) return;
+  lang = newLang;
+  localStorage.setItem("panini.lang", lang);
+  applyTranslations();
+  rerender();
+}
+
+function applyTranslations() {
+  document.documentElement.lang = lang;
+  document.title = t("docTitle");
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-html]").forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll("[data-i18n-title]").forEach(el => { el.title = t(el.dataset.i18nTitle); });
+  document.querySelectorAll("[data-i18n-aria]").forEach(el => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
+  const syncEl = $("syncText");
+  if (syncEl && syncEl.dataset.i18nKey) syncEl.textContent = t(syncEl.dataset.i18nKey);
+  const lb = $("langBtn"); if (lb) lb.textContent = lang.toUpperCase();
+}
+
 // ---------------- Data ----------------
-// [name, flag, group, ISO 3166-1 alpha-3 (ENG/SCO are non-ISO; using FIFA-style codes)]
+// [name, flag, group, FIFA country code (the 3-letter trigram, e.g. KSA, GER, NED — NOT ISO 3166)]
 const TEAMS = [
-  ["Algeria","🇩🇿","CAF","DZA"],["Argentina","🇦🇷","CONMEBOL","ARG"],["Australia","🇦🇺","AFC","AUS"],
+  ["Algeria","🇩🇿","CAF","ALG"],["Argentina","🇦🇷","CONMEBOL","ARG"],["Australia","🇦🇺","AFC","AUS"],
   ["Austria","🇦🇹","UEFA","AUT"],["Belgium","🇧🇪","UEFA","BEL"],["Bosnia and Herzegovina","🇧🇦","UEFA","BIH"],
   ["Brazil","🇧🇷","CONMEBOL","BRA"],["Canada","🇨🇦","Host","CAN"],["Cape Verde","🇨🇻","CAF","CPV"],
-  ["Colombia","🇨🇴","CONMEBOL","COL"],["Congo DR","🇨🇩","CAF","COD"],["Croatia","🇭🇷","UEFA","HRV"],
+  ["Colombia","🇨🇴","CONMEBOL","COL"],["Congo DR","🇨🇩","CAF","COD"],["Croatia","🇭🇷","UEFA","CRO"],
   ["Curaçao","🇨🇼","CONCACAF","CUW"],["Czechia","🇨🇿","UEFA","CZE"],["Ecuador","🇪🇨","CONMEBOL","ECU"],
   ["Egypt","🇪🇬","CAF","EGY"],["England","🏴󠁧󠁢󠁥󠁮󠁧󠁿","UEFA","ENG"],["France","🇫🇷","UEFA","FRA"],
-  ["Germany","🇩🇪","UEFA","DEU"],["Ghana","🇬🇭","CAF","GHA"],["Haiti","🇭🇹","CONCACAF","HTI"],
+  ["Germany","🇩🇪","UEFA","GER"],["Ghana","🇬🇭","CAF","GHA"],["Haiti","🇭🇹","CONCACAF","HAI"],
   ["Iran","🇮🇷","AFC","IRN"],["Iraq","🇮🇶","AFC","IRQ"],["Ivory Coast","🇨🇮","CAF","CIV"],
   ["Japan","🇯🇵","AFC","JPN"],["Jordan","🇯🇴","AFC","JOR"],["Mexico","🇲🇽","Host","MEX"],
-  ["Morocco","🇲🇦","CAF","MAR"],["Netherlands","🇳🇱","UEFA","NLD"],["New Zealand","🇳🇿","OFC","NZL"],
-  ["Norway","🇳🇴","UEFA","NOR"],["Panama","🇵🇦","CONCACAF","PAN"],["Paraguay","🇵🇾","CONMEBOL","PRY"],
-  ["Portugal","🇵🇹","UEFA","PRT"],["Qatar","🇶🇦","AFC","QAT"],["Saudi Arabia","🇸🇦","AFC","SAU"],
-  ["Scotland","🏴󠁧󠁢󠁳󠁣󠁴󠁿","UEFA","SCO"],["Senegal","🇸🇳","CAF","SEN"],["South Africa","🇿🇦","CAF","ZAF"],
+  ["Morocco","🇲🇦","CAF","MAR"],["Netherlands","🇳🇱","UEFA","NED"],["New Zealand","🇳🇿","OFC","NZL"],
+  ["Norway","🇳🇴","UEFA","NOR"],["Panama","🇵🇦","CONCACAF","PAN"],["Paraguay","🇵🇾","CONMEBOL","PAR"],
+  ["Portugal","🇵🇹","UEFA","POR"],["Qatar","🇶🇦","AFC","QAT"],["Saudi Arabia","🇸🇦","AFC","KSA"],
+  ["Scotland","🏴󠁧󠁢󠁳󠁣󠁴󠁿","UEFA","SCO"],["Senegal","🇸🇳","CAF","SEN"],["South Africa","🇿🇦","CAF","RSA"],
   ["South Korea","🇰🇷","AFC","KOR"],["Spain","🇪🇸","UEFA","ESP"],["Sweden","🇸🇪","UEFA","SWE"],
-  ["Switzerland","🇨🇭","UEFA","CHE"],["Tunisia","🇹🇳","CAF","TUN"],["Türkiye","🇹🇷","UEFA","TUR"],
-  ["United States","🇺🇸","Host","USA"],["Uruguay","🇺🇾","CONMEBOL","URY"],["Uzbekistan","🇺🇿","AFC","UZB"]
+  ["Switzerland","🇨🇭","UEFA","SUI"],["Tunisia","🇹🇳","CAF","TUN"],["Türkiye","🇹🇷","UEFA","TUR"],
+  ["United States","🇺🇸","Host","USA"],["Uruguay","🇺🇾","CONMEBOL","URU"],["Uzbekistan","🇺🇿","AFC","UZB"]
 ];
 
+// 2026 World Cup group draw (Dec 2025). [groupLetter, positionInGroup 1-4].
+// Position is the official draw order (A1/A2/A3/A4). Hosts are always at position 1.
+const WC_GROUPS = {
+  "Mexico":["A",1], "South Africa":["A",2], "South Korea":["A",3], "Czechia":["A",4],
+  "Canada":["B",1], "Bosnia and Herzegovina":["B",2], "Qatar":["B",3], "Switzerland":["B",4],
+  "Brazil":["C",1], "Morocco":["C",2], "Haiti":["C",3], "Scotland":["C",4],
+  "United States":["D",1], "Paraguay":["D",2], "Australia":["D",3], "Türkiye":["D",4],
+  "Germany":["E",1], "Curaçao":["E",2], "Ivory Coast":["E",3], "Ecuador":["E",4],
+  "Netherlands":["F",1], "Japan":["F",2], "Sweden":["F",3], "Tunisia":["F",4],
+  "Belgium":["G",1], "Egypt":["G",2], "Iran":["G",3], "New Zealand":["G",4],
+  "Spain":["H",1], "Cape Verde":["H",2], "Saudi Arabia":["H",3], "Uruguay":["H",4],
+  "France":["I",1], "Senegal":["I",2], "Iraq":["I",3], "Norway":["I",4],
+  "Argentina":["J",1], "Algeria":["J",2], "Austria":["J",3], "Jordan":["J",4],
+  "Portugal":["K",1], "Congo DR":["K",2], "Uzbekistan":["K",3], "Colombia":["K",4],
+  "England":["L",1], "Croatia":["L",2], "Ghana":["L",3], "Panama":["L",4]
+};
+
 // Intro stickers numbered 0-19. Panini=0, Emblem A/B at 1-2.
-const INTRO_LABELS = [
-  "Panini Logo",
-  "FIFA Emblem (1/2)","FIFA Emblem (2/2)",
-  "Mascots","Slogan","Official Ball",
-  "Host: Canada","Host: Mexico","Host: USA",
-  "FIFA Museum 1","FIFA Museum 2","FIFA Museum 3","FIFA Museum 4",
-  "FIFA Museum 5","FIFA Museum 6","FIFA Museum 7","FIFA Museum 8",
-  "FIFA Museum 9","FIFA Museum 10","FIFA Museum 11"
+// Each entry is [labelKey, ...args] resolved through t() at render time.
+const INTRO_LABEL_KEYS = [
+  ["paniniLogo"],
+  ["fifaEmblem1"], ["fifaEmblem2"],
+  ["mascots"], ["slogan"], ["officialBall"],
+  ["hostCanada"], ["hostMexico"], ["hostUSA"],
+  ["fifaMuseum", 1], ["fifaMuseum", 2], ["fifaMuseum", 3], ["fifaMuseum", 4],
+  ["fifaMuseum", 5], ["fifaMuseum", 6], ["fifaMuseum", 7], ["fifaMuseum", 8],
+  ["fifaMuseum", 9], ["fifaMuseum", 10], ["fifaMuseum", 11]
 ];
+
+// Resolve a sticker label using its i18n key (or fall back to a literal string).
+function stickerLabel(s) {
+  if (s.labelKey) return t(s.labelKey, ...(s.labelArgs || []));
+  return s.label;
+}
 
 // Build sections.
 // Per-team layout (within team's 20-sticker block):
@@ -293,27 +563,32 @@ const INTRO_LABELS = [
 const SECTIONS = [];
 SECTIONS.push({
   id: "intro",
-  name: "Intro & Tournament",
+  nameKey: "intro",
   group: "Special",
   flag: "⚽",
-  stickers: INTRO_LABELS.map((label, i) => ({ n: i, label }))
+  stickers: INTRO_LABEL_KEYS.map(([k, ...args], i) => ({ n: i, labelKey: k, labelArgs: args }))
 });
-TEAMS.forEach((t, idx) => {
+TEAMS.forEach((tm, idx) => {
   const start = 20 + idx * 20;
-  const code = t[3];
+  const code = tm[3];
   const stickers = [];
-  stickers.push({ n: start, label: "Team Crest" });
+  stickers.push({ n: start, labelKey: "teamCrest" });
   for (let p = 2; p <= 12; p++) stickers.push({ n: start + p - 1, label: `${code} ${p}` });
-  stickers.push({ n: start + 12, label: "Team Photo" });
+  stickers.push({ n: start + 12, labelKey: "teamPhoto" });
   for (let p = 14; p <= 20; p++) stickers.push({ n: start + p - 1, label: `${code} ${p}` });
+  const wc = WC_GROUPS[tm[0]] || ["?", 99];
   SECTIONS.push({
     id: "team-" + idx,
-    name: t[0],
-    group: t[2],
-    flag: t[1],
+    name: tm[0],
+    group: tm[2],
+    wcGroup: wc[0],
+    wcPos: wc[1],
+    flag: tm[1],
     stickers
   });
 });
+
+function sectionName(sec) { return sec.nameKey ? t(sec.nameKey) : sec.name; }
 
 const TOTAL_STICKERS = 980;
 
@@ -331,6 +606,7 @@ const defaultState = () => ({
 let state = loadState();
 let activeSectionId = "intro";
 let hideOwned = false;
+let sortMode = localStorage.getItem("panini.sort") || "confederation";
 
 function loadState() {
   try {
@@ -375,22 +651,44 @@ function sectionStats(sec) {
 
 function renderSidebar() {
   const filter = ($("filter").value || "").toLowerCase();
+  const byGroup = sortMode === "group";
   const groups = {};
   SECTIONS.forEach(sec => {
-    if (filter && !sec.name.toLowerCase().includes(filter) && !sec.group.toLowerCase().includes(filter)) return;
-    (groups[sec.group] ||= []).push(sec);
+    const groupVal = byGroup ? (sec.wcGroup || "Special") : sec.group;
+    const localName = sectionName(sec).toLowerCase();
+    if (filter && !localName.includes(filter) && !groupVal.toLowerCase().includes(filter)) return;
+    (groups[groupVal] ||= []).push(sec);
   });
-  const order = ["Special","Host","UEFA","CONMEBOL","CONCACAF","CAF","AFC","OFC"];
+  const order = byGroup
+    ? ["Special","A","B","C","D","E","F","G","H","I","J","K","L"]
+    : ["Special","Host","UEFA","CONMEBOL","CONCACAF","CAF","AFC","OFC"];
+  $("sortToggle").querySelectorAll("button").forEach(b => {
+    b.classList.toggle("active", b.dataset.sort === sortMode);
+  });
+  if (byGroup) {
+    Object.values(groups).forEach(arr => arr.sort((a, b) => (a.wcPos || 99) - (b.wcPos || 99)));
+  }
+  const headerFor = (g) => {
+    if (byGroup) return g === "Special" ? t("special") : `${t("group")} ${g}`;
+    if (g === "Special") return t("special");
+    if (g === "Host") return t("host");
+    return g; // confederation acronyms (UEFA, CAF, ...) stay as-is
+  };
   let html = "";
+  html += `<div class="group-header">${t("overview")}</div>`;
+  html += `<div class="section-item ${activeSectionId === 'stats' ? 'active' : ''}" data-id="stats">
+    <div class="name"><span>📊</span><span class="txt">${t("stats")}</span></div>
+    <div class="count"></div>
+  </div>`;
   order.forEach(g => {
     if (!groups[g]) return;
-    html += `<div class="group-header">${g}</div>`;
+    html += `<div class="group-header">${headerFor(g)}</div>`;
     groups[g].forEach(sec => {
       const st = sectionStats(sec);
       const complete = st.owned === st.total;
       const dupBadge = st.dups > 0 ? ` <span style="color:var(--gold)">+${st.dups}</span>` : "";
       html += `<div class="section-item ${activeSectionId === sec.id ? 'active' : ''} ${complete ? 'complete' : ''}" data-id="${sec.id}">
-        <div class="name"><span>${sec.flag}</span><span class="txt">${sec.name}</span></div>
+        <div class="name"><span>${sec.flag}</span><span class="txt">${sectionName(sec)}</span></div>
         <div class="count">${st.owned}/${st.total}${dupBadge}</div>
       </div>`;
     });
@@ -406,18 +704,21 @@ function renderSidebar() {
 }
 
 function renderContent() {
+  if (activeSectionId === "stats") return renderStats();
   const sec = SECTIONS.find(s => s.id === activeSectionId);
   if (!sec) return;
   const st = sectionStats(sec);
+  const metaParts = [t("collected", st.owned, st.total)];
+  if (st.dups) metaParts.push(t("extras", st.dups));
   let html = `
     <div class="section-title">
-      <h2>${sec.flag} ${sec.name}</h2>
-      <span class="meta">${st.owned}/${st.total} collected${st.dups ? ` · ${st.dups} extras for trade` : ''}</span>
+      <h2>${sec.flag} ${sectionName(sec)}</h2>
+      <span class="meta">${metaParts.join(" · ")}</span>
     </div>
     <div class="section-toolbar">
-      <label class="toggle"><input type="checkbox" id="hideOwnedCheck" ${hideOwned ? 'checked' : ''}/> Hide owned</label>
-      <button id="markAllBtn">Mark section complete</button>
-      <button id="clearAllBtn">Clear section</button>
+      <label class="toggle"><input type="checkbox" id="hideOwnedCheck" ${hideOwned ? 'checked' : ''}/> ${t("hideOwned")}</label>
+      <button id="markAllBtn">${t("markComplete")}</button>
+      <button id="clearAllBtn">${t("clearSection")}</button>
     </div>
     <div class="grid" id="grid">`;
   sec.stickers.forEach(s => {
@@ -426,13 +727,13 @@ function renderContent() {
     const dups = dupsFor(s.n);
     html += `<div class="sticker ${owned ? 'owned' : ''}" data-n="${s.n}">
       <div class="num"><span>#${s.n}</span>${owned ? '<span>✓</span>' : ''}</div>
-      <div class="label">${s.label}</div>
+      <div class="label">${stickerLabel(s)}</div>
       <div class="actions">
-        <button class="own-btn">${owned ? 'Got it' : 'Mark have'}</button>
+        <button class="own-btn">${owned ? t("gotIt") : t("markHave")}</button>
         <div class="dup-control">
-          <button class="dup-minus" title="Remove duplicate">−</button>
+          <button class="dup-minus" title="${t("removeDup")}">−</button>
           <span class="count ${dups > 0 ? 'has-dups' : ''}">${dups}</span>
-          <button class="dup-plus" title="Add duplicate">+</button>
+          <button class="dup-plus" title="${t("addDup")}">+</button>
         </div>
       </div>
     </div>`;
@@ -446,7 +747,7 @@ function renderContent() {
     saveState(); rerender();
   });
   $("clearAllBtn").addEventListener("click", () => {
-    if (!confirm("Clear all stickers in this section? (extras will also be cleared)")) return;
+    if (!confirm(t("clearConfirm"))) return;
     sec.stickers.forEach(s => { delete state.owned[s.n]; delete state.duplicates[s.n]; });
     saveState(); rerender();
   });
@@ -459,10 +760,76 @@ function renderContent() {
   });
 }
 
+function renderStats() {
+  const teams = SECTIONS.filter(s => s.id.startsWith("team-"));
+  // In our sticker array: index 0 = crest, index 12 = team photo.
+  const missingCrests = teams.filter(s => !isOwned(s.stickers[0].n));
+  const missingPhotos = teams.filter(s => !isOwned(s.stickers[12].n));
+
+  const groupStats = {};
+  teams.forEach(s => {
+    const g = s.wcGroup || "?";
+    (groupStats[g] ||= { owned: 0, total: 0 });
+    s.stickers.forEach(st => {
+      groupStats[g].total++;
+      if (isOwned(st.n)) groupStats[g].owned++;
+    });
+  });
+  const groupRows = Object.entries(groupStats)
+    .map(([g, st]) => ({ key: g, label: `${t("group")} ${g}`, owned: st.owned, total: st.total, pct: st.total ? st.owned / st.total * 100 : 0 }))
+    .sort((a, b) => b.pct - a.pct || a.key.localeCompare(b.key));
+
+  const teamRows = teams.map(s => {
+    const st = sectionStats(s);
+    return { id: s.id, label: `${s.flag} ${sectionName(s)}`, owned: st.owned, total: st.total, pct: st.total ? st.owned / st.total * 100 : 0 };
+  }).sort((a, b) => b.pct - a.pct || a.label.localeCompare(b.label));
+
+  const itemBtn = (s) => `<button class="missing-item" data-jump="${s.id}">${s.flag} ${sectionName(s)}</button>`;
+  const progressRow = (r, jumpId) =>
+    `<div class="progress-row ${r.owned === r.total ? 'complete' : ''}" ${jumpId ? `data-jump="${jumpId}"` : ''}>
+      <span class="label">${r.label}</span>
+      <div class="bar"><div class="fill" style="width:${r.pct}%"></div></div>
+      <span class="pct">${r.owned}/${r.total} · ${Math.round(r.pct)}%</span>
+    </div>`;
+
+  $("content").innerHTML = `
+    <div class="section-title"><h2>${t("statsTitle")}</h2><span class="meta">${t("statsSubtitle")}</span></div>
+    <div class="stats">
+      <div class="stats-section">
+        <h3>${t("missingCrests")} <span class="meta">${t("countOf", missingCrests.length, teams.length)}</span></h3>
+        ${missingCrests.length
+          ? `<div class="missing-list">${missingCrests.map(itemBtn).join('')}</div>`
+          : `<p class="stats-empty">${t("allCrests")}</p>`}
+      </div>
+      <div class="stats-section">
+        <h3>${t("missingPhotos")} <span class="meta">${t("countOf", missingPhotos.length, teams.length)}</span></h3>
+        ${missingPhotos.length
+          ? `<div class="missing-list">${missingPhotos.map(itemBtn).join('')}</div>`
+          : `<p class="stats-empty">${t("allPhotos")}</p>`}
+      </div>
+      <div class="stats-section">
+        <h3>${t("groupProgress")} <span class="meta">${t("mostToLeast")}</span></h3>
+        <div class="progress-list">${groupRows.map(r => progressRow(r)).join('')}</div>
+      </div>
+      <div class="stats-section">
+        <h3>${t("teamProgress")} <span class="meta">${t("mostToLeast")}</span></h3>
+        <div class="progress-list">${teamRows.map(r => progressRow(r, r.id)).join('')}</div>
+      </div>
+    </div>`;
+
+  $("content").querySelectorAll("[data-jump]").forEach(el => {
+    el.addEventListener("click", () => {
+      activeSectionId = el.dataset.jump;
+      renderSidebar(); renderContent();
+      $("content").scrollTop = 0;
+    });
+  });
+}
+
 function renderProgress() {
   const c = ownedCount();
   const pct = Math.round((c / TOTAL_STICKERS) * 100);
-  $("progressText").textContent = `${c} / ${TOTAL_STICKERS} stickers`;
+  $("progressText").textContent = t("stickerCount", c, TOTAL_STICKERS);
   $("progressPct").textContent = pct + "%";
   $("progressFill").style.width = pct + "%";
 }
@@ -560,8 +927,14 @@ async function dbxDownload() {
     }
   });
   if (r.status === 409) return null; // not found
-  if (!r.ok) throw new Error("Download failed: " + r.status);
-  return await r.json();
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    console.error("Dropbox download error:", r.status, text);
+    throw new Error("Download failed: " + r.status + " " + text.slice(0, 200));
+  }
+  const text = await r.text();
+  if (!text) return null;
+  try { return JSON.parse(text); } catch { return null; }
 }
 
 async function dbxUpload(data) {
@@ -576,22 +949,26 @@ async function dbxUpload(data) {
     },
     body: JSON.stringify(data)
   });
-  if (!r.ok) throw new Error("Upload failed: " + r.status);
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    console.error("Dropbox upload error:", r.status, text);
+    throw new Error("Upload failed: " + r.status + " " + text.slice(0, 200));
+  }
 }
 
 // ---------------- Sync ----------------
 let syncTimer = null;
 function scheduleSync() {
   if (!dbxState().refreshToken) return;
-  setSyncStatus("pending", "Pending");
+  setSyncStatus("pending", "pending");
   clearTimeout(syncTimer);
   syncTimer = setTimeout(doSync, 1500);
 }
 
 async function doSync() {
-  if (!dbxState().refreshToken) { setSyncStatus("offline", "Offline"); return; }
+  if (!dbxState().refreshToken) { setSyncStatus("offline", "offline"); return; }
   try {
-    setSyncStatus("syncing", "Syncing…");
+    setSyncStatus("syncing", "syncing");
     const remote = await dbxDownload();
     if (remote && remote.lastUpdated > state.lastUpdated) {
       state = Object.assign(defaultState(), remote);
@@ -600,16 +977,18 @@ async function doSync() {
     } else {
       await dbxUpload(state);
     }
-    setSyncStatus("synced", "Synced");
+    setSyncStatus("synced", "synced");
   } catch (e) {
     console.error(e);
-    setSyncStatus("error", "Sync error");
+    setSyncStatus("error", "syncErr");
+    toast(e.message, true);
   }
 }
 
-function setSyncStatus(cls, text) {
+function setSyncStatus(cls, textKey) {
   $("syncDot").className = "sync-dot " + cls;
-  $("syncText").textContent = text;
+  $("syncText").textContent = t(textKey);
+  $("syncText").dataset.i18nKey = textKey;
 }
 
 function toast(msg, isError) {
@@ -621,12 +1000,15 @@ function toast(msg, isError) {
 
 // ---------------- Setup modal ----------------
 function openSetup() {
+  // Re-apply translations so the modal text is in the current language; this
+  // also sets redirectUri's textContent since step6 includes that element.
+  applyTranslations();
   $("redirectUri").textContent = DBX_REDIRECT;
   const connected = !!dbxState().refreshToken;
   const shared = !!SHARED_DBX_APP_KEY;
   $("setupForm").style.display = connected ? "none" : "block";
   $("connectedView").style.display = connected ? "block" : "none";
-  $("setupStatus").textContent = connected ? "Connected to Dropbox." : "";
+  $("setupStatus").textContent = connected ? t("connectedToDbx") : "";
   $("setupShared").style.display = shared ? "block" : "none";
   $("setupAdvanced").style.display = shared ? "none" : "block";
   $("setupModal").classList.add("open");
@@ -641,10 +1023,10 @@ async function handleOAuthRedirect() {
   history.replaceState({}, "", location.pathname);
   try {
     await exchangeCode(code);
-    toast("Dropbox connected!");
+    toast(t("dropboxConnectedToast"));
     await doSync();
   } catch (e) {
-    toast("OAuth failed: " + e.message, true);
+    toast(t("oauthFailed", e.message), true);
   }
 }
 
@@ -655,19 +1037,27 @@ function initListeners() {
   $("syncStatus").addEventListener("click", () => { if (dbxState().refreshToken) doSync(); else openSetup(); });
   $("menuBtn").addEventListener("click", () => $("sidebar").classList.toggle("open"));
   $("filter").addEventListener("input", renderSidebar);
+  $("sortToggle").addEventListener("click", e => {
+    const b = e.target.closest("button[data-sort]");
+    if (!b) return;
+    sortMode = b.dataset.sort;
+    localStorage.setItem("panini.sort", sortMode);
+    renderSidebar();
+  });
   $("connectBtn").addEventListener("click", () => {
     const k = SHARED_DBX_APP_KEY || $("appKeyInput").value.trim();
-    if (!k) { toast("Enter app key", true); return; }
+    if (!k) { toast(t("enterAppKey"), true); return; }
     startDropboxOAuth(k);
   });
   $("syncNowBtn").addEventListener("click", () => { closeSetup(); doSync(); });
   $("disconnectBtn").addEventListener("click", () => {
-    if (!confirm("Disconnect Dropbox? Local data is kept.")) return;
+    if (!confirm(t("disconnectConfirm"))) return;
     localStorage.removeItem(DBX_KEY);
-    setSyncStatus("offline", "Offline");
+    setSyncStatus("offline", "offline");
     closeSetup();
-    toast("Disconnected.");
+    toast(t("disconnectedToast"));
   });
+  $("langBtn").addEventListener("click", () => setLang(lang === "en" ? "es" : "en"));
   $("exportBtn").addEventListener("click", () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -679,13 +1069,14 @@ function initListeners() {
 
 async function init() {
   initListeners();
+  applyTranslations();
   rerender();
   if (location.search.includes("code=")) await handleOAuthRedirect();
   if (dbxState().refreshToken) {
-    setSyncStatus("synced", "Connected");
+    setSyncStatus("synced", "connectedStatus");
     doSync();
   } else {
-    setSyncStatus("offline", "Offline");
+    setSyncStatus("offline", "offline");
   }
 }
 
