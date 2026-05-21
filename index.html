@@ -382,7 +382,10 @@ const I18N = {
     dropboxConnectedToast: "Dropbox connected!",
     oauthFailed: (msg) => "OAuth failed: " + msg,
     enterAppKey: "Enter app key",
-    disconnectedToast: "Disconnected."
+    disconnectedToast: "Disconnected.",
+    shareWhatsApp: "📲 Send my missing list on WhatsApp",
+    nothingMissing: "Nothing missing — album complete! 🏆",
+    missingMsgHeader: "🎴 Stickers I'm missing for the Panini 2026 album:"
   },
   es: {
     docTitle: "Panini 2026 — Mi Álbum",
@@ -462,7 +465,10 @@ const I18N = {
     dropboxConnectedToast: "¡Dropbox conectado!",
     oauthFailed: (msg) => "Error de OAuth: " + msg,
     enterAppKey: "Introduce la App key",
-    disconnectedToast: "Desconectado."
+    disconnectedToast: "Desconectado.",
+    shareWhatsApp: "📲 Enviar mi lista de cromos que faltan por WhatsApp",
+    nothingMissing: "¡No falta nada — álbum completo! 🏆",
+    missingMsgHeader: "🎴 Cromos que me faltan del álbum Panini 2026:"
   }
 };
 
@@ -760,6 +766,48 @@ function renderContent() {
   });
 }
 
+// Build a WhatsApp-friendly text listing every sticker the user is missing.
+// Intro section first, then teams grouped by World Cup group (in official A1-A4
+// order within each group). Format: "Team Name <flag>: CODE2, CODE5, CODE13".
+function buildMissingMessage() {
+  const blocks = [];
+
+  const intro = SECTIONS.find(s => s.id === "intro");
+  if (intro) {
+    const missing = intro.stickers.filter(s => !isOwned(s.n));
+    if (missing.length) {
+      blocks.push(`*${sectionName(intro)}*: ${missing.map(s => "FWC" + s.n).join(", ")}`);
+    }
+  }
+
+  ["A","B","C","D","E","F","G","H","I","J","K","L"].forEach(g => {
+    const teamsInGroup = SECTIONS
+      .filter(s => s.wcGroup === g)
+      .sort((a, b) => (a.wcPos || 99) - (b.wcPos || 99));
+    const lines = [];
+    teamsInGroup.forEach(team => {
+      const idx = parseInt(team.id.split("-")[1], 10);
+      const code = TEAMS[idx][3];
+      const missing = [];
+      team.stickers.forEach((s, i) => {
+        if (!isOwned(s.n)) missing.push(`${code}${i + 1}`);
+      });
+      if (missing.length) lines.push(`${team.name} ${team.flag}: ${missing.join(", ")}`);
+    });
+    if (lines.length) blocks.push(`*${t("group")} ${g}*\n${lines.join("\n")}`);
+  });
+
+  if (!blocks.length) return "";
+  return `${t("missingMsgHeader")}\n\n${blocks.join("\n\n")}`;
+}
+
+function shareMissingViaWhatsApp() {
+  const msg = buildMissingMessage();
+  if (!msg) { toast(t("nothingMissing")); return; }
+  const url = "https://wa.me/?text=" + encodeURIComponent(msg);
+  window.open(url, "_blank", "noopener");
+}
+
 function renderStats() {
   const teams = SECTIONS.filter(s => s.id.startsWith("team-"));
   // In our sticker array: index 0 = crest, index 12 = team photo.
@@ -794,6 +842,7 @@ function renderStats() {
 
   $("content").innerHTML = `
     <div class="section-title"><h2>${t("statsTitle")}</h2><span class="meta">${t("statsSubtitle")}</span></div>
+    <div class="section-toolbar"><button class="primary" id="shareWhatsAppBtn">${t("shareWhatsApp")}</button></div>
     <div class="stats">
       <div class="stats-section">
         <h3>${t("missingCrests")} <span class="meta">${t("countOf", missingCrests.length, teams.length)}</span></h3>
@@ -824,6 +873,7 @@ function renderStats() {
       $("content").scrollTop = 0;
     });
   });
+  $("shareWhatsAppBtn").addEventListener("click", shareMissingViaWhatsApp);
 }
 
 function renderProgress() {
